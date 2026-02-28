@@ -75,6 +75,9 @@ class DatatableQueryBuilder
     /** @var array<string> List alias yang didaftarkan (untuk search & select) */
     protected array $modelFilter = [];
 
+    /** @var array<string> Semua alias yang di-select (termasuk non-searchable) */
+    protected array $selectAliases = [];
+
     /** @var GrammarInterface SQL grammar sesuai database driver */
     protected GrammarInterface $grammar;
 
@@ -268,13 +271,17 @@ class DatatableQueryBuilder
      *
      * @param string $alias Nama alias
      * @param string $expression Raw SQL expression
+     * @param bool $searchable Apakah kolom ini ikut di-search saat global search (default: true)
      * @return $this
      */
-    public function addRawColumn(string $alias, string $expression): static
+    public function addRawColumn(string $alias, string $expression, bool $searchable = true): static
     {
         $this->columns[$alias] = $expression;
         $this->columns["{$alias}_alias"] = $alias;
-        $this->modelFilter[] = $alias;
+        $this->selectAliases[] = $alias;
+        if ($searchable) {
+            $this->modelFilter[] = $alias;
+        }
         return $this;
     }
 
@@ -381,7 +388,7 @@ class DatatableQueryBuilder
 
         $toDbRaw = array_map(function (string $alias): \Illuminate\Database\Query\Expression {
             return DB::raw($this->columns[$alias] . ' as ' . $this->columns["{$alias}_alias"]);
-        }, $this->modelFilter);
+        }, $this->selectAliases);
 
         /** @var Builder $query */
         $query = ($this->modelClass)::select(array_merge([
